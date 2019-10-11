@@ -1,57 +1,147 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
-import './App.css';
+import React, { Component } from "react";
+import axios from "axios";
+import { Route } from "react-router-dom";
 
-function App() {
-  const [date, setDate] = useState(null);
-  useEffect(() => {
-    async function getDate() {
-      const res = await fetch('/api/date');
-      const newDate = await res.text();
-      setDate(newDate);
-    }
-    getDate();
-  }, []);
-  return (
-    <main>
-      <h1>Create React App + Go API</h1>
-      <h2>
-        Deployed with{' '}
-        <a
-          href="https://zeit.co/docs"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          ZEIT Now
-        </a>
-        !
-      </h2>
-      <p>
-        <a
-          href="https://github.com/zeit/now-examples/tree/master/create-react-app-functions"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          This project
-        </a>{' '}
-        was bootstrapped with{' '}
-        <a href="https://facebook.github.io/create-react-app/">
-          Create React App
-        </a>{' '}
-        and contains three directories, <code>/public</code> for static assets,{' '}
-        <code>/src</code> for components and content, and <code>/api</code>{' '}
-        which contains a serverless <a href="https://golang.org/">Go</a>{' '}
-        function. See{' '}
-        <a href="/api/date">
-          <code>api/date</code> for the Date API with Go
-        </a>
-        .
-      </p>
-      <br />
-      <h2>The date according to Go is:</h2>
-      <p>{date ? date : 'Loading date...'}</p>
-    </main>
-  );
+import "./App.css";
+import SmurfForm from "./components/SmurfForm";
+import Smurfs from "./components/Smurfs";
+import NavBar from "./components/NavBar";
+import SmurfProfile from "./components/SmurfProfile";
+
+const serverURL = "http://localhost:3333/smurfs";
+
+class App extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      smurfs: [],
+      smurf: {
+        name: "",
+        age: "",
+        height: ""
+      },
+      update: false
+    };
+  }
+
+  componentDidMount() {
+    axios
+      .get(serverURL)
+      .then(res => this.setState({ smurfs: res.data }))
+      .catch(err => console.log(err));
+  }
+
+  handleInputChange = e => {
+    this.setState({
+      smurf: {
+        ...this.state.smurf,
+        [e.target.name]: e.target.value
+      }
+    });
+  };
+
+  addSmurf = () => {
+    axios
+      .post(serverURL, this.state.smurf)
+      .then(res => {
+        this.setState({
+          smurfs: res.data,
+          smurf: {
+            name: "",
+            age: "",
+            height: ""
+          },
+          update: false
+        });
+        this.props.history.push("/");
+      })
+      .catch(err => console.log(err));
+  };
+
+  deleteSmurf = (event, id) => {
+    event.preventDefault();
+    axios
+      .delete(`${serverURL}/${id}`)
+      .then(res => {
+        this.setState({
+          smurfs: res.data
+        })
+        this.props.history.push("/");
+        }
+      )
+      .catch(err => console.log(err));
+  };
+
+  showUpdateForm = (event, id) => {
+    event.preventDefault();
+    this.setState({
+      update: true,
+      smurf: this.state.smurfs.find(smurf => smurf.id === id)
+    });
+    this.props.history.push("/smurf-form");
+  };
+
+  updateSmurfInfo = () => {
+    axios
+      .put(`${serverURL}/${this.state.smurf.id}`, this.state.smurf)
+      .then(res => {
+        this.setState({
+          smurfs: res.data,
+          smurf: {
+            name: "",
+            age: "",
+            height: ""
+          },
+          update: false
+        });
+        this.props.history.push("/");
+      })
+      .catch(err => console.log(err));
+  };
+
+  render() {
+    return (
+      <div className="App">
+        <NavBar />
+        <Route
+          path="/smurf-form"
+          render={props => (
+            <SmurfForm
+              {...props}
+              serverURL={serverURL}
+              addSmurf={this.addSmurf}
+              handleInputChange={this.handleInputChange}
+              smurf={this.state.smurf}
+              update={this.state.update}
+              updateSmurfInfo={this.updateSmurfInfo}
+            />
+          )}
+        />
+        <Route
+          exact
+          path="/"
+          render={props => (
+            <Smurfs
+              {...props}
+              smurfs={this.state.smurfs}
+              serverURL={serverURL}
+            />
+          )}
+        />
+        <Route
+          path="/smurf/:id"
+          render={props => (
+            <SmurfProfile 
+              {...props}
+              serverURL={serverURL}
+              showUpdateForm={this.showUpdateForm}
+              deleteSmurf={this.deleteSmurf}
+            />
+          )}
+        />
+      </div>
+    );
+  }
 }
 
 export default App;
